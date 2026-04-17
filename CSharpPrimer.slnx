@@ -1,0 +1,16 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/Collections/Collections.csproj" />
+    <Project Path="src/Concurrency/Concurrency.csproj" />
+    <Project Path="src/Fundamentals/Fundamentals.csproj" />
+    <Project Path="src/Patterns/Patterns.csproj" />
+    <Project Path="src/Streams/Streams.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/Collections.Tests/Collections.Tests.csproj" />
+    <Project Path="tests/Concurrency.Tests/Concurrency.Tests.csproj" />
+    <Project Path="tests/Fundamentals.Tests/Fundamentals.Tests.csproj" />
+    <Project Path="tests/Patterns.Tests/Patterns.Tests.csproj" />
+    <Project Path="tests/Streams.Tests/Streams.Tests.csproj" />
+  </Folder>
+</Solution>
