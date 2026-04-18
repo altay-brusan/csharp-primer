@@ -43,6 +43,32 @@ namespace _01_file_and_stream
         /// files, memory, or network sockets
         /// </summary>
 
+
+        internal static void StreamClassCanBeUsedToConnectToMemoryStream()
+        {
+            byte[] buffer = new byte[1024];
+            byte[] readout = new byte[1024];
+            byte[] data = Encoding.UTF8.GetBytes("Hello, World!");
+
+
+            Stream stream = new MemoryStream(buffer);
+
+            stream.Write(data, 0, data.Length);
+            // if you want to read from the stream after writing,
+            // you need to set the position back to the beginning of the stream.
+            // Otherwise, you will be reading from the end of the stream and get 0 bytes read.
+            stream.Position = 0;
+            //stream.Close(); can not read after close.
+            //ObjectDisposedException will be thrown if you try to
+            //read or write after close.
+
+            int bytesRead = stream.Read(readout, 0, buffer.Length);
+
+            Console.WriteLine(stream.Position); // stream class provides a position property to track the current position in the stream
+            Console.WriteLine(bytesRead); // stream class provides a read method that returns the number of bytes read
+            Console.WriteLine("The string is:" + Encoding.UTF8.GetString(readout, 0, bytesRead)); // stream class provides a write method that writes data to the stream
+        }
+
         internal static void StreamClassCanBeUsedToConnectToFileStream() 
         {
             // Example of using a FileStream to read from a file
@@ -67,6 +93,34 @@ namespace _01_file_and_stream
                 int bytesRead = stream.Read(buffer);
                 Console.WriteLine($"Read {bytesRead} bytes from file.");
             }
+        }
+
+        /// <summary>
+        /// why BinaryReader's ReadBytes is better than Stream's Read method?
+        /// Because BinaryReader's ReadBytes method will return all the bytes available in the stream
+        /// if the number of bytes to read is greater than the number of bytes available in the stream,
+        /// while Stream's Read method will return 0 bytes read if you try to read more bytes than available
+        /// in the stream.
+        /// </summary>
+        internal static void BinaryReaderClassReview()
+        {
+            byte[] buffer = new byte[1024];
+            byte[] readout;
+            byte[] data = Encoding.UTF8.GetBytes("Hello, World!");
+
+            Stream stream = new MemoryStream(buffer);
+            stream.Write(data, 0, data.Length);
+
+            // even BinaryReader needs to set the position back to the beginning of the stream
+            // before reading, otherwise it will read from the end of the stream and get 0 bytes read.
+            stream.Position = 0;
+
+            BinaryReader binaryReader = new BinaryReader(stream);
+            // BinaryReader class provides a ReadBytes method that reads a specified number of bytes from the stream and returns them as a byte array.
+            // If the number of bytes to read is greater than the number of bytes available in the stream, it will return all the bytes available in the stream.
+            readout = binaryReader.ReadBytes(10000);
+
+            Console.WriteLine("The string is:" + Encoding.UTF8.GetString(readout, 0, readout.Length));
         }
 
         internal static void MemoryStreamWithFixedAndDynamicBufferHasDifferentCharachteristics()
@@ -133,7 +187,6 @@ namespace _01_file_and_stream
                 }
             }
         }
-
 
         /// <summary>
         /// NetworkStream is a stream that provides access to data over a network connection.
@@ -211,58 +264,6 @@ namespace _01_file_and_stream
             Console.WriteLine("[COMPLETE] NetworkStream communication finished\n");
         }
 
-
-        internal static void ReviewStreamClass()
-        {
-            byte[] buffer = new byte[1024];
-            byte[] readout = new byte[1024];
-            byte[] data = Encoding.UTF8.GetBytes("Hello, World!");
-
-
-            Stream stream = new MemoryStream(buffer);
-
-            stream.Write(data, 0, data.Length);
-            // if you want to read from the stream after writing,
-            // you need to set the position back to the beginning of the stream.
-            // Otherwise, you will be reading from the end of the stream and get 0 bytes read.
-            stream.Position = 0;
-            //stream.Close(); can not read after close.
-            //ObjectDisposedException will be thrown if you try to
-            //read or write after close.
-
-            int bytesRead = stream.Read(readout, 0, buffer.Length);
-
-            Console.WriteLine(stream.Position); // stream class provides a position property to track the current position in the stream
-            Console.WriteLine(bytesRead); // stream class provides a read method that returns the number of bytes read
-            Console.WriteLine("The string is:" + Encoding.UTF8.GetString(readout, 0, bytesRead)); // stream class provides a write method that writes data to the stream
-        }
-
-        internal static void ReviewBinaryReaderClass()
-        {
-            byte[] buffer = new byte[1024];
-            byte[] readout;
-            byte[] data = Encoding.UTF8.GetBytes("Hello, World!");
-
-            Stream stream = new MemoryStream(buffer);
-            stream.Write(data, 0, data.Length);
-
-            // even BinaryReader needs to set the position back to the beginning of the stream
-            // before reading, otherwise it will read from the end of the stream and get 0 bytes read.
-            stream.Position = 0;
-
-            BinaryReader binaryReader = new BinaryReader(stream);
-            // BinaryReader class provides a ReadBytes method that reads a specified number of bytes from the stream and returns them as a byte array.
-            // If the number of bytes to read is greater than the number of bytes available in the stream, it will return all the bytes available in the stream.
-            readout = binaryReader.ReadBytes(10000);
-
-            // why BinaryReader's ReadBytes is better than Stream's Read method?
-            // Because BinaryReader's ReadBytes method will return all the bytes available in the stream
-            // if the number of bytes to read is greater than the number of bytes available in the stream,
-            // while Stream's Read method will return 0 bytes read if you try to read more bytes than available
-            // in the stream.
-
-            Console.WriteLine("The string is:" + Encoding.UTF8.GetString(readout, 0, readout.Length));
-        }
 
         internal static void ThreadSafeStreamAdapter()
         {
