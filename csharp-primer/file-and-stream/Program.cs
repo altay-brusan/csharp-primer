@@ -402,6 +402,11 @@ namespace _01_file_and_stream
             // All lines in memory at once
         }
 
+        /// <summary>
+        /// The current folder "." should not be considered as the best place to put temporary files
+        /// As the current folder may not be same as the place the executable is running from.
+        /// So, you should put your additional files in a special folder like Desktop, Documents, AppData, or Temp.
+        /// </summary>
         internal static void SpecialPaths()
         {
             string desktopPath = Environment.GetFolderPath(Environment.SpecialFolder.Desktop);
