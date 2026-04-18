@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.ComponentModel;
+using System.Drawing;
 using System.IO.Compression;
 using System.IO.IsolatedStorage;
 using System.IO.Pipes;
@@ -402,6 +403,71 @@ namespace _01_file_and_stream
             // All lines in memory at once
         }
 
+
+        /// <summary>
+        /// The most common application for BufferedStream is when you are performing 
+        /// many small read or write operations (like single bytes or small arrays) 
+        /// on a stream that would otherwise require an expensive system call for 
+        /// every single operation.
+        /// 
+        /// When NOT to use it
+        /// 
+        /// FileStream: 
+        /// Modern FileStream already has a built-in buffer(defaulting to 4096 bytes). 
+        /// Wrapping a FileStream in a BufferedStream creates a "double buffer" 
+        /// which usually wastes memory and can actually slow down your performance.
+        /// 
+        /// MemoryStream: 
+        /// Since a MemoryStream is already just a block of memory, adding a BufferedStream 
+        /// on top of it is redundant and adds unnecessary overhead.
+        /// </summary>
+        internal static void BufferedStreamCanImproveSmallReadAndWrite()
+        {
+            // To see BufferedStream's effect we need a stream that does NOT buffer
+            // internally. FileStream normally has a 4 KB internal buffer; passing
+            // bufferSize: 1 disables it so every WriteByte is a real OS write.
+            // This mimics a stream like NetworkStream that has no inherent buffering.
+            const int count = 100_000;
+            string unbufferedPath = Path.Combine(Path.GetTempPath(), "buffered_demo_direct.bin");
+            string bufferedPath = Path.Combine(Path.GetTempPath(), "buffered_demo_wrapped.bin");
+
+            // Case 1: many small writes straight to an unbuffered stream -> ~100k syscalls.
+            var sw = System.Diagnostics.Stopwatch.StartNew();
+            using (var raw = new FileStream(unbufferedPath, FileMode.Create, FileAccess.Write, FileShare.None, bufferSize: 1))
+            {
+                for (int i = 0; i < count; i++)
+                    raw.WriteByte((byte)(i & 0xFF));
+            }
+            sw.Stop();
+            long directMs = sw.ElapsedMilliseconds;
+
+            // Case 2: same writes through a BufferedStream. The wrapper fills a 4 KB
+            // buffer in user space and only flushes to the underlying stream when full,
+            // cutting syscalls by roughly the buffer-size factor (~25 instead of 100k).
+            sw.Restart();
+            using (var raw = new FileStream(bufferedPath, FileMode.Create, FileAccess.Write, FileShare.None, bufferSize: 1))
+            using (var buffered = new BufferedStream(raw, bufferSize: 4096))
+            {
+                for (int i = 0; i < count; i++)
+                    buffered.WriteByte((byte)(i & 0xFF));
+                // Dispose flushes any partial final buffer — omitting Flush is fine
+                // when the using scope ends immediately after the last write.
+                buffered.Flush();
+            }
+            sw.Stop();
+            long bufferedMs = sw.ElapsedMilliseconds;
+
+            Console.WriteLine($"Unbuffered (1 syscall per byte): {directMs} ms");
+            Console.WriteLine($"BufferedStream (4 KB buffer):    {bufferedMs} ms");
+            Console.WriteLine($"Speedup: {(directMs == 0 ? 0 : (double)directMs / Math.Max(bufferedMs, 1)):F1}x");
+
+            // Counter-example: wrapping a default FileStream (which already buffers
+            // at 4 KB internally) with another BufferedStream is redundant — you pay
+            // an extra copy through the outer buffer for no syscall savings. That's
+            // the shape of the original example and is intentionally NOT shown here.
+        }
+
+
         /// <summary>
         /// The current folder "." should not be considered as the best place to put temporary files
         /// As the current folder may not be same as the place the executable is running from.
@@ -643,16 +709,7 @@ namespace _01_file_and_stream
             Console.WriteLine("[COMPLETE] Multiple client example finished\n");
         }
 
-        internal static void DecoratorStreams()
-        {             // Example of using a decorator stream (BufferedStream) to add buffering to a FileStream
-            using var fileStream = new FileStream("decorator_example.txt", FileMode.Create, FileAccess.Write);
-            using var bufferedStream = new BufferedStream(fileStream);
-            string content = "This is an example of using a BufferedStream as a decorator for a FileStream.";
-            byte[] data = Encoding.UTF8.GetBytes(content);
-            bufferedStream.Write(data, 0, data.Length);
-            bufferedStream.Flush(); // Ensure all data is written to the underlying stream
-            Console.WriteLine("Data written to file using BufferedStream decorator.");
-        }
+
 
         internal static void DeflateStreamExample()
         {
@@ -797,7 +854,7 @@ namespace _01_file_and_stream
 
         public static void Main() 
         {
-            NetworkStreamExample();
+            BufferedStreamCanImproveSmallReadAndWrite();
         }
 
     }
