@@ -386,7 +386,7 @@ namespace _01_file_and_stream
 
         }
 
-        internal static void FileLazyLoading()
+        internal static void FileReadCanBeLazyLoading()
         {
             // 1. Truly LAZY - deferred execution, nothing happens yet
             var query = System.IO.File.ReadLines("file.txt").Where(l => l.Length > 80);
