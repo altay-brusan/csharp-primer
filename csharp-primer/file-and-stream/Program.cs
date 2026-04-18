@@ -1,10 +1,12 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.ComponentModel;
 using System.IO.Compression;
 using System.IO.IsolatedStorage;
 using System.IO.Pipes;
 using System.Net.Security;
 using System.Net.Sockets;
+using System.Reflection;
 using System.Reflection.Emit;
 using System.Runtime.Intrinsics.X86;
 using System.Text;
@@ -265,6 +267,23 @@ namespace _01_file_and_stream
         }
 
 
+        /// <summary>
+        ///   What "synchronized" actually means here                                                                                                                                                                                                                    - Mutual exclusion, not async.Only one thread at a time can be inside any method on the wrapper.Other threads calling Read/Write block on the monitor until the current call returns.
+        /// It's roughly equivalent to:
+        ///   lock (syncRoot) { return inner.Read(buffer, offset, count); }
+        /// 
+        /// The lock uses the wrapper instance as the sync root, 
+        /// so all operations share one lock — read vs write are not independent.
+        ///   
+        /// What it does not do
+        /// <list type="bullet">
+        ///   <item>It does not make the I/O non-blocking.If the underlying FileStream.Read takes 2 seconds to hit the disk, every other thread waits those 2 seconds.</item>
+        ///   <item>It does not help with ReadAsync/WriteAsync — async methods go through the base class and may not acquire the same lock, so mixing sync and async on a Synchronized wrapper is not safe.</item>
+        ///   <item>It does not coordinate the stream position.Thread A can Seek then Read; between those two calls Thread B can Seek too.Each call is atomic, but sequences of calls are not.</item>
+        ///   <item>It does not protect the underlying stream from code that still holds the original reference — if you synchronize stream but then also write to stream directly, you've bypassed the lock.</item>
+        /// </list>
+        /// Conclusion: Stream.Synchronized is a very narrow tool that only makes individual Read/Write calls thread-safe. It does not make the stream itself thread-safe for complex operations or async usage.
+        /// </summary>
         internal static void ThreadSafeStreamAdapter()
         {
             // Test WITHOUT synchronization (may cause issues)
@@ -276,6 +295,43 @@ namespace _01_file_and_stream
             TestStreamConcurrency(useSynchronized: true);
         }
 
+        private static void TestStreamConcurrency(bool useSynchronized)
+        {
+            string filename = useSynchronized ? "test_safe.txt" : "test_unsafe.txt";
+
+            using FileStream stream = new FileStream(filename, FileMode.Create, FileAccess.ReadWrite, FileShare.None);
+            Stream workingStream = useSynchronized ? Stream.Synchronized(stream) : stream;
+
+            // Create multiple tasks that write to the stream concurrently
+            List<Task> tasks = new List<Task>();
+
+            for (int i = 0; i < 10; i++)
+            {
+                int threadId = i;
+                tasks.Add(Task.Run(() =>
+                {
+                    byte[] data = Encoding.UTF8.GetBytes($"Thread {threadId}: Hello from concurrent thread\n");
+
+                    try
+                    {
+                        // Seek to end and write
+                        workingStream.Seek(0, SeekOrigin.End);
+                        workingStream.Write(data, 0, data.Length);
+                        workingStream.Flush();
+                        Console.WriteLine($"Thread {threadId} wrote successfully");
+                    }
+                    catch (Exception ex)
+                    {
+                        Console.WriteLine($"Thread {threadId} error: {ex.Message}");
+                    }
+                }));
+            }
+
+            Task.WaitAll(tasks.ToArray());
+            Console.WriteLine($"File size: {new FileInfo(filename).Length} bytes");
+        }
+
+        
         internal static void FileStreamCreation()
         {
             FileStream fileStreamCreate = System.IO.File.Create("test-file-in-create.txt");
@@ -728,41 +784,7 @@ namespace _01_file_and_stream
             }
         }
 
-        private static void TestStreamConcurrency(bool useSynchronized)
-        {
-            string filename = useSynchronized ? "test_safe.txt" : "test_unsafe.txt";
-
-            using FileStream stream = new FileStream(filename, FileMode.Create, FileAccess.ReadWrite, FileShare.None);
-            Stream workingStream = useSynchronized ? Stream.Synchronized(stream) : stream;
-
-            // Create multiple tasks that write to the stream concurrently
-            List<Task> tasks = new List<Task>();
-
-            for (int i = 0; i < 10; i++)
-            {
-                int threadId = i;
-                tasks.Add(Task.Run(() =>
-                {
-                    byte[] data = Encoding.UTF8.GetBytes($"Thread {threadId}: Hello from concurrent thread\n");
-
-                    try
-                    {
-                        // Seek to end and write
-                        workingStream.Seek(0, SeekOrigin.End);
-                        workingStream.Write(data, 0, data.Length);
-                        workingStream.Flush();
-                        Console.WriteLine($"Thread {threadId} wrote successfully");
-                    }
-                    catch (Exception ex)
-                    {
-                        Console.WriteLine($"Thread {threadId} error: {ex.Message}");
-                    }
-                }));
-            }
-
-            Task.WaitAll(tasks.ToArray());
-            Console.WriteLine($"File size: {new FileInfo(filename).Length} bytes");
-        }
+       
 
         public static void Main() 
         {
