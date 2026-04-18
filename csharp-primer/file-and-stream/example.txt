@@ -1,0 +1,6 @@
+This is sample file for file and stream module in .NET. 
+This file is used to demonstrate how to read and write files using the file and 
+stream module in .NET. 
+
+The file contains some sample text that can be used for testing purposes. 
+You can use this file to practice reading and writing files using the .NET.
