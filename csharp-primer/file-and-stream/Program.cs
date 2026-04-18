@@ -1,4 +1,5 @@
-﻿using System;
+﻿using Microsoft.VisualBasic;
+using System;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Drawing;
@@ -9,6 +10,7 @@ using System.Net.Security;
 using System.Net.Sockets;
 using System.Reflection;
 using System.Reflection.Emit;
+using System.Reflection.PortableExecutable;
 using System.Runtime.Intrinsics.X86;
 using System.Text;
 using static System.Net.WebRequestMethods;
@@ -405,6 +407,17 @@ namespace _01_file_and_stream
 
 
         /// <summary>
+        /// 
+        ///  Q. BufferedStream has read operation, but why we use StreamReader?
+        /// Each layer adds a specific capability:
+        ///    FileStream               // Layer 1: Read from disk (bytes)
+        ///            ↓
+        ///        DeflateStream        // Layer 2: Decompress (bytes → bytes)
+        ///            ↓
+        ///        BufferedStream       // Layer 3: Add buffering (bytes → bytes)
+        ///            ↓
+        ///        StreamReader         // Layer 4: Convert to text (bytes → strings)
+        /// 
         /// The most common application for BufferedStream is when you are performing 
         /// many small read or write operations (like single bytes or small arrays) 
         /// on a stream that would otherwise require an expensive system call for 
@@ -710,72 +723,31 @@ namespace _01_file_and_stream
         }
 
 
-
-        internal static void DeflateStreamExample()
-        {
-
-            /*
-             * Q. BufferedStream has read operation, but why we use StreamReader?
-             // Each layer adds a specific capability:
-
-                FileStream           // Layer 1: Read from disk (bytes)
-                    ↓
-                DeflateStream        // Layer 2: Decompress (bytes → bytes)
-                    ↓
-                BufferedStream       // Layer 3: Add buffering (bytes → bytes)
-                    ↓
-                StreamReader         // Layer 4: Convert to text (bytes → strings)
-            
-                // DeflateStream works with BYTES
-                byte[] buffer = new byte[1024];
-                int bytesRead = deflateStream.Read(buffer, 0, buffer.Length);
-                // You get raw bytes - you need to manually convert to string
-
-                // StreamReader works with TEXT/CHARACTERS
-                string line = reader.ReadLine();  // ✅ Convenient!
-                string allText = reader.ReadToEnd();  // ✅ Easy!
-
-                using (MemoryStream input = new MemoryStream(compressedData))
-                using (DeflateStream deflate = new DeflateStream(input, CompressionMode.Decompress))
-                {
-                    // You have to manually read bytes and convert
-                    byte[] buffer = new byte[1024];
-                    int bytesRead = deflate.Read(buffer, 0, buffer.Length);
-    
-                    // Manual encoding conversion
-                    string text = Encoding.UTF8.GetString(buffer, 0, bytesRead);
-    
-                    // What if text is larger than buffer? You need a loop!
-                    // What about line breaks? You need to parse them yourself!
-                    // What about multi-byte characters? You need to handle partial reads!
-                }
-
-             */
-
-            /*
-             TextReader (abstract)           TextWriter (abstract)
-                ↓                               ↓
-                ├─ StreamReader            ├─ StreamWriter      (Read/Write from STREAMS)
-                ├─ StringReader            ├─ StringWriter      (Read/Write from STRINGS)
-                └─ (your custom)           └─ (your custom)
-             
-            // 1. You can write methods that accept ANY text source
-            internal static void ProcessText(TextReader reader)
-            {
-                string line;
-                while ((line = reader.ReadLine()) != null)
-                {
-                    Console.WriteLine(line.ToUpper());
-                }
-            }
-
-            // 2. Can be called with DIFFERENT implementations
-            ProcessText(new StreamReader("file.txt"));        // From file
-            ProcessText(new StringReader("test\ndata"));      // From string
-            ProcessText(Console.In);                           // From console (also a TextReader!)
-             
-             */
-
+        /// <summary>
+        /// TextReader (abstract)           TextWriter (abstract)
+        ///        ↓                               ↓
+        ///        ├─ StreamReader            ├─ StreamWriter(Read/Write from STREAMS)
+        ///        ├─ StringReader            ├─ StringWriter(Read/Write from STRINGS)
+        ///        └─ (your custom)           └─ (your custom)
+        ///        
+        /// Why TextReader/Write is used?
+        ///  You can write methods that accept ANY text source
+        ///  
+        /// StreamReader works with TEXT/CHARACTERS
+        ///     string line = reader.ReadLine();  // ✅ Convenient!
+        ///     string allText = reader.ReadToEnd();  // ✅ Easy!
+        ///
+        /// StreamReader vs MemoryStream/DeflateStream
+        /// What if text is larger than buffer? You need a loop!   // 👈 StreamReader handles this for you!
+        /// What about line breaks? You need to parse them yourself! // 👈 StreamReader handles this for you!
+        /// What about multi-byte characters? You need to handle partial reads! // 👈 StreamReader handles this for you!
+        /// You have to manually read bytes and convert
+        ///     int bytesRead = deflate.Read(buffer, 0, buffer.Length);
+        ///     Manual encoding conversion
+        ///     string text = Encoding.UTF8.GetString(buffer, 0, bytesRead);
+        /// </summary>
+        internal static void DeflateAndStreamReaderCompare()
+        {            
             string originalText = "This is a test string that will be compressed using DeflateStream. " +
                                  "The more repetitive the data, the better the compression ratio!";
 
