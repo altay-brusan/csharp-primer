@@ -331,11 +331,15 @@ namespace _01_file_and_stream
             Console.WriteLine($"File size: {new FileInfo(filename).Length} bytes");
         }
 
-        
+        /// <summary>
+        /// File class provides a set of static methods for read/write files in
+        /// Text, Line and Binary formats.
+        /// For qick file operations, File class is more convenient than FileStream class.
+        /// </summary>
         internal static void FileStreamCreation()
         {
             FileStream fileStreamCreate = System.IO.File.Create("test-file-in-create.txt");
-
+            
             try
             {
                 if (System.IO.File.Exists("test-file-in-open-read.txt"))
