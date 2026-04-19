@@ -499,7 +499,7 @@ namespace _01_file_and_stream
             Console.WriteLine($"Temporary file created: {tempFile}");
         }
 
-        internal static void FileStaticExample()
+        internal static void FileStaticFunctionsAndFileInfoCompare()
         {
             string path = "myfile.txt";
 
